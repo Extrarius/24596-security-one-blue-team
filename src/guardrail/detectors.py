@@ -36,6 +36,23 @@ class KeywordRule:
 
 DEFAULT_KEYWORD_RULES = (
     KeywordRule(
+        Action.ESCALATE,
+        ReasonCode.IMMINENT_SAFETY_RISK,
+        (
+            "immediate danger",
+            "urgent help now",
+            "threatening me right now",
+            "about to hurt myself",
+            "about to hurt themselves",
+            "about to hurt himself",
+            "about to hurt herself",
+            "about to harm myself",
+            "about to harm themselves",
+            "about to harm himself",
+            "about to harm herself",
+        ),
+    ),
+    KeywordRule(
         Action.BLOCK,
         ReasonCode.PROMPT_OVERRIDE,
         ("ignore", "system prompt", "reveal", "secret"),
