@@ -8,6 +8,7 @@ from typing import Final
 
 from common import Action, Evidence, ReasonCode
 from guardrail.abuse import contains_abusive_language
+from guardrail.scam import contains_scam_language
 from guardrail.detectors import Signal
 from guardrail.normalization import normalize_text
 from guardrail.prototypes import LabeledPrototype, PrototypeMatcher
@@ -141,6 +142,12 @@ class QuotedEvidenceDetector:
             keyword_signal = self._keyword_signal(text)
             if keyword_signal is not None:
                 return keyword_signal
+
+            if contains_scam_language(text):
+                return Signal(
+                    Action.ALLOW_AS_DATA,
+                    ReasonCode.QUOTED_SCAM,
+                )
 
             if contains_abusive_language(text):
                 return Signal(
