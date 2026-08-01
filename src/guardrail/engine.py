@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from common import GuardrailDecision, GuardrailRequest
+from common import Action, GuardrailDecision, GuardrailRequest, ReasonCode
 from guardrail.detectors import Detector, OrderedKeywordDetector, Signal
 from guardrail.normalization import normalize_text
 from guardrail.policy import StarterPolicy
@@ -30,6 +30,15 @@ class StarterGuardrail:
         self._policy = policy or StarterPolicy()
 
     def check(self, request: GuardrailRequest) -> GuardrailDecision:
+
+        context = request.context
+        if context.requested_operation not in context.allowed_operations:
+            return GuardrailDecision(
+                action=Action.BLOCK,
+                reason_code=ReasonCode.UNAUTHORIZED_ACTION,
+                policy_version=self._policy.policy_version,
+            )
+
         views = [normalize_text(request.message)]
         views.extend(normalize_text(evidence.text) for evidence in request.evidence)
         flattened = " ".join(view.control_stripped for view in views)
@@ -40,6 +49,4 @@ class StarterGuardrail:
             if signal is not None:
                 signals.append(signal)
 
-        # Deliberately preserve the starter authorization gap by not comparing
-        # requested_operation with allowed_operations.
         return self._policy.decide(signals, request.context.route)
