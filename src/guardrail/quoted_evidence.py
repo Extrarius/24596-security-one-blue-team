@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Final
 
 from common import Action, Evidence, ReasonCode
-from guardrail.abuse import contains_abusive_language
+from guardrail.abuse import contains_quoted_abusive_language
 from guardrail.detectors import Signal
 from guardrail.normalization import normalize_text
 from guardrail.prototypes import LabeledPrototype, PrototypeMatcher
@@ -94,7 +94,8 @@ QUOTED_PROTOTYPES: Final = (
     ),
     LabeledPrototype(
         ReasonCode.QUOTED_ABUSE.value,
-        "hostile message says the target does not belong and should disappear",
+        "hostile message tells the target they do not belong and are "
+        "unwanted here",
     ),
     LabeledPrototype(
         ReasonCode.QUOTED_ABUSE.value,
@@ -171,7 +172,7 @@ class QuotedEvidenceDetector:
             if keyword_signal is not None:
                 return keyword_signal
 
-            if contains_abusive_language(text):
+            if contains_quoted_abusive_language(text):
                 return Signal(
                     Action.ALLOW_AS_DATA,
                     ReasonCode.QUOTED_ABUSE,

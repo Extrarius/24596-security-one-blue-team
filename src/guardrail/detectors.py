@@ -74,34 +74,6 @@ DEFAULT_KEYWORD_RULES = (
 )
 
 
-POLICY_MARKERS: Final[tuple[str, ...]] = (
-    "policy",
-    "policies",
-    "rule",
-    "rules",
-    "guideline",
-    "guidelines",
-    "community standards",
-)
-
-QUESTION_PATTERN: Final[Pattern[str]] = compile_pattern(
-    r"\b(?:what|which|why|when|where|how|does|do|is|are|can|could|"
-    r"would|should)\b"
-)
-
-ACTION_REQUEST_PATTERN: Final[Pattern[str]] = compile_pattern(
-    r"\b(?:show|teach|tell|help|give)\s+me\b|"
-    r"\b(?:steps?|instructions?|ways?|methods?)\s+to\b|"
-    r"\bso\s+(?:that\s+)?i\s+can\b"
-)
-
-UNSAFE_POLICY_INTENT_PATTERN: Final[Pattern[str]] = compile_pattern(
-    r"\b(?:bypass|circumvent|get around|beat|dodge|slip past|"
-    r"avoid detection|avoid the filter)\b|"
-    r"\b(?:who reported|who submitted|reporter identity|"
-    r"home address|phone number|exact location|dox|doxx)\b"
-)
-
 PRIVATE_DATA_REQUEST_PATTERNS: Final[tuple[Pattern[str], ...]] = (
     compile_pattern(
         r"\bwho\s+(?:reported|flagged|filed|submitted|made|sent)\b"
@@ -136,27 +108,10 @@ def _normalized(text: str) -> str:
     return normalize_text(text).control_stripped
 
 
-def is_safe_policy_question(text: str) -> bool:
-    """Return whether text asks about rules rather than requesting harm."""
-
-    normalized = _normalized(text)
-    has_policy_marker = any(marker in normalized for marker in POLICY_MARKERS)
-
-    return (
-        has_policy_marker
-        and QUESTION_PATTERN.search(normalized) is not None
-        and ACTION_REQUEST_PATTERN.search(normalized) is None
-        and UNSAFE_POLICY_INTENT_PATTERN.search(normalized) is None
-    )
-
-
 def is_private_data_request(text: str) -> bool:
     """Return whether text seeks another person's private information."""
 
     normalized = _normalized(text)
-
-    if is_safe_policy_question(normalized):
-        return False
 
     if SELF_DATA_PATTERN.search(normalized):
         return False
@@ -188,7 +143,6 @@ class OrderedKeywordDetector:
 
     def detect(self, text: str) -> Signal | None:
         flattened = normalize_text(text).control_stripped
-        policy_question = is_safe_policy_question(flattened)
 
         for rule in self._rules:
             matched = any(
@@ -197,18 +151,6 @@ class OrderedKeywordDetector:
             )
 
             if not matched:
-                continue
-
-            # Narrow keyword-only suppression for explicit policy questions.
-            # Do not gate vector detectors with this check.
-            if (
-                policy_question
-                and rule.reason_code
-                in {
-                    ReasonCode.MODERATION_EVASION,
-                    ReasonCode.PRIVATE_DATA_REQUEST,
-                }
-            ):
                 continue
 
             if (

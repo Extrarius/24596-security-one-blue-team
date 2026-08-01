@@ -42,15 +42,17 @@ STRONG_ABUSE_PATTERNS: Final[tuple[Pattern[str], ...]] = (
         r"\byou\s+(?:make me sick|should be ashamed|ruin everything|"
         r"deserve nothing|are not wanted)\b"
     ),
+)
+
+
+# Quoted-only signals. The bareword go-away/disappear pattern is omitted on
+# purpose: it hijacked scam evidence into QUOTED_ABUSE.
+QUOTED_ABUSE_PATTERNS: Final[tuple[Pattern[str], ...]] = (
     compile_pattern(
         r"\byou(?:'re|re| are)\s+(?:so\s+)?"
         r"(?:ugly|annoying|hopeless|weak|unwanted|unlovable|"
         r"embarrassing|incompetent|ignorant|awful|horrible|"
         r"ridiculous|repulsive|nasty|toxic|crazy|insane)\b"
-    ),
-    compile_pattern(
-        r"\b(?:go away|stay away|crawl back|disappear|"
-        r"get out of here|go back where you came from)\b"
     ),
     compile_pattern(
         r"\b(?:people like you|your kind)\b"
@@ -174,6 +176,20 @@ def contains_abusive_language(text: str) -> bool:
     return any(
         pattern.search(normalized)
         for pattern in STRONG_ABUSE_PATTERNS
+    )
+
+
+def contains_quoted_abusive_language(text: str) -> bool:
+    """Return whether quoted evidence contains personal-abuse language."""
+
+    normalized = _normalized(text)
+
+    return any(
+        pattern.search(normalized)
+        for pattern in (
+            *STRONG_ABUSE_PATTERNS,
+            *QUOTED_ABUSE_PATTERNS,
+        )
     )
 
 
