@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from common import Action, GuardrailDecision, GuardrailRequest, ReasonCode
+from common import Action, GuardrailDecision, GuardrailRequest, ReasonCode, Route
 from guardrail.detectors import Detector, OrderedKeywordDetector, Signal
 from guardrail.normalization import normalize_text
 from guardrail.policy import StarterPolicy
+from guardrail.quoted_evidence import QuotedEvidenceDetector
 from guardrail.vector_detector import create_starter_prototype_detector
 
 
@@ -28,10 +29,11 @@ class StarterGuardrail:
             )
         )
         self._policy = policy or StarterPolicy()
+        self._quoted_evidence = QuotedEvidenceDetector()
 
     def check(self, request: GuardrailRequest) -> GuardrailDecision:
-
         context = request.context
+
         if context.requested_operation not in context.allowed_operations:
             return GuardrailDecision(
                 action=Action.BLOCK,
@@ -39,14 +41,25 @@ class StarterGuardrail:
                 policy_version=self._policy.policy_version,
             )
 
-        views = [normalize_text(request.message)]
-        views.extend(normalize_text(evidence.text) for evidence in request.evidence)
-        flattened = " ".join(view.control_stripped for view in views)
+        active_text = normalize_text(request.message).control_stripped
 
         signals: list[Signal] = []
         for detector in self._detectors:
-            signal = detector.detect(flattened)
+            signal = detector.detect(active_text)
             if signal is not None:
                 signals.append(signal)
 
-        return self._policy.decide(signals, request.context.route)
+        if signals:
+            return self._policy.decide(signals, context.route)
+
+        if context.route == Route.REPORT and request.evidence:
+            quoted_signal = self._quoted_evidence.detect(request.evidence)
+
+            if quoted_signal is not None:
+                return GuardrailDecision(
+                    action=quoted_signal.action,
+                    reason_code=quoted_signal.reason_code,
+                    policy_version=self._policy.policy_version,
+                )
+
+        return self._policy.decide((), context.route)
