@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Protocol, Sequence, runtime_checkable
 
 from common import Action, ReasonCode
+from guardrail.abuse import is_generate_abuse_request
 from guardrail.normalization import normalize_text
 
 
@@ -97,6 +98,34 @@ class OrderedKeywordDetector:
     def detect(self, text: str) -> Signal | None:
         flattened = normalize_text(text).control_stripped
         for rule in self._rules:
-            if any(keyword in flattened for keyword in rule.keywords):
-                return Signal(rule.action, rule.reason_code)
+            matched = any(
+                keyword in flattened
+                for keyword in rule.keywords
+            )
+
+            if not matched:
+                continue
+
+            if (
+                rule.reason_code is ReasonCode.GENERATE_ABUSE
+                and not is_generate_abuse_request(flattened)
+            ):
+                continue
+
+            return Signal(
+                rule.action,
+                rule.reason_code,
+            )
         return None
+
+class GenerateAbuseDetector:
+    """Detect requests to create or perform targeted abusive language."""
+
+    def detect(self, text: str) -> Signal | None:
+        if not is_generate_abuse_request(text):
+            return None
+
+        return Signal(
+            Action.BLOCK,
+            ReasonCode.GENERATE_ABUSE,
+        )
