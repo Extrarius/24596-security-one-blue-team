@@ -51,6 +51,14 @@ EVIDENCE_RULES: Final = (
             "claim your prize",
             "wire transfer",
             "verification code",
+            "one-time code",
+            "pay the delivery fee",
+            "delivery fee",
+            "double your money",
+            "guaranteed return",
+            "send cryptocurrency",
+            "urgent bank transfer",
+            "click the link to verify",
         ),
     ),
     EvidenceRule(
@@ -64,6 +72,11 @@ EVIDENCE_RULES: Final = (
             "you are a loser",
             "disgusting person",
             "everyone hates you",
+            "you do not belong",
+            "you are unwanted",
+            "nobody will ever love you",
+            "you should disappear",
+            "your kind should not be here",
         ),
     ),
 )
@@ -80,6 +93,14 @@ QUOTED_PROTOTYPES: Final = (
         "hostile personal abuse humiliating somebody and attacking their worth",
     ),
     LabeledPrototype(
+        ReasonCode.QUOTED_ABUSE.value,
+        "hostile message says the target does not belong and should disappear",
+    ),
+    LabeledPrototype(
+        ReasonCode.QUOTED_ABUSE.value,
+        "personal attack says nobody will love or respect the target",
+    ),
+    LabeledPrototype(
         ReasonCode.QUOTED_SCAM.value,
         "fraudulent offer asks for an advance processing fee to claim a "
         "guaranteed prize",
@@ -88,6 +109,14 @@ QUOTED_PROTOTYPES: Final = (
         ReasonCode.QUOTED_SCAM.value,
         "impersonated official support requests gift cards or account "
         "verification payment",
+    ),
+    LabeledPrototype(
+        ReasonCode.QUOTED_SCAM.value,
+        "urgent delivery notice demands a fee or account verification code",
+    ),
+    LabeledPrototype(
+        ReasonCode.QUOTED_SCAM.value,
+        "guaranteed investment return asks the recipient to transfer money",
     ),
     LabeledPrototype(
         ReasonCode.QUOTED_INJECTION.value,
