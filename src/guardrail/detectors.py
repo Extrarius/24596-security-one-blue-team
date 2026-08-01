@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from typing import Protocol, Sequence, runtime_checkable
 
 from common import Action, ReasonCode
+from guardrail.evasion import is_moderation_evasion_request
+from guardrail.privacy import is_private_data_request
 from guardrail.abuse import is_generate_abuse_request
 from guardrail.imminent_risk import is_imminent_safety_risk
 from guardrail.normalization import normalize_text
@@ -96,6 +98,18 @@ class OrderedKeywordDetector:
             ):
                 continue
 
+            if (
+                rule.reason_code is ReasonCode.MODERATION_EVASION
+                and not is_moderation_evasion_request(flattened)
+            ):
+                continue
+
+            if (
+                rule.reason_code is ReasonCode.PRIVATE_DATA_REQUEST
+                and not is_private_data_request(flattened)
+            ):
+                continue
+
             return Signal(
                 rule.action,
                 rule.reason_code,
@@ -112,6 +126,31 @@ class ImminentRiskDetector:
         return Signal(
             Action.ESCALATE,
             ReasonCode.IMMINENT_SAFETY_RISK,
+        )
+
+class ModerationEvasionDetector:
+    """Detect requests to defeat moderation controls."""
+
+    def detect(self, text: str) -> Signal | None:
+        if not is_moderation_evasion_request(text):
+            return None
+
+        return Signal(
+            Action.BLOCK,
+            ReasonCode.MODERATION_EVASION,
+        )
+
+
+class PrivateDataDetector:
+    """Detect requests for another person's private information."""
+
+    def detect(self, text: str) -> Signal | None:
+        if not is_private_data_request(text):
+            return None
+
+        return Signal(
+            Action.BLOCK,
+            ReasonCode.PRIVATE_DATA_REQUEST,
         )
 
 class GenerateAbuseDetector:
