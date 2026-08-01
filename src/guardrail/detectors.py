@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol, Sequence, runtime_checkable
+from re import Pattern, compile as compile_pattern
+from typing import Final, Protocol, Sequence, runtime_checkable
 
 from common import Action, ReasonCode
 from guardrail.abuse import is_generate_abuse_request
@@ -55,9 +56,115 @@ DEFAULT_KEYWORD_RULES = (
     KeywordRule(
         Action.BLOCK,
         ReasonCode.PRIVATE_DATA_REQUEST,
-        ("reporter identity", "private data", "home address"),
+        (
+            "reporter identity",
+            "private data",
+            "home address",
+            "who reported",
+            "who submitted the complaint",
+            "reporter name",
+            "reporter's name",
+            "unmask the reporter",
+            "dox",
+            "doxx",
+            "another user's",
+            "somebody else's",
+        ),
     ),
 )
+
+
+POLICY_MARKERS: Final[tuple[str, ...]] = (
+    "policy",
+    "policies",
+    "rule",
+    "rules",
+    "guideline",
+    "guidelines",
+    "community standards",
+)
+
+QUESTION_PATTERN: Final[Pattern[str]] = compile_pattern(
+    r"\b(?:what|which|why|when|where|how|does|do|is|are|can|could|"
+    r"would|should)\b"
+)
+
+ACTION_REQUEST_PATTERN: Final[Pattern[str]] = compile_pattern(
+    r"\b(?:show|teach|tell|help|give)\s+me\b|"
+    r"\b(?:steps?|instructions?|ways?|methods?)\s+to\b|"
+    r"\bso\s+(?:that\s+)?i\s+can\b"
+)
+
+UNSAFE_POLICY_INTENT_PATTERN: Final[Pattern[str]] = compile_pattern(
+    r"\b(?:bypass|circumvent|get around|beat|dodge|slip past|"
+    r"avoid detection|avoid the filter)\b|"
+    r"\b(?:who reported|who submitted|reporter identity|"
+    r"home address|phone number|exact location|dox|doxx)\b"
+)
+
+PRIVATE_DATA_REQUEST_PATTERNS: Final[tuple[Pattern[str], ...]] = (
+    compile_pattern(
+        r"\bwho\s+(?:reported|flagged|filed|submitted|made|sent)\b"
+        r".{0,50}\b(?:report|complaint|case)?\b"
+    ),
+    compile_pattern(
+        r"\b(?:identify|unmask|reveal|name|find)\b.{0,50}"
+        r"\b(?:reporter|complainant|whistleblower|person who reported)\b"
+    ),
+    compile_pattern(
+        r"\b(?:find|locate|track|trace|identify|unmask|reveal|expose|"
+        r"provide|give me|tell me|show me|get me|look up|dig up)\b"
+        r".{0,100}\b(?:real name|full name|home address|street address|"
+        r"phone number|email address|ip address|exact location|"
+        r"live location|contact details|personal details|"
+        r"private information|workplace)\b"
+    ),
+    compile_pattern(
+        r"\bwhere\s+(?:does|do|is|are)\b.{0,60}"
+        r"\b(?:live|living|stay|staying|work|working|located)\b"
+    ),
+    compile_pattern(r"\b(?:dox|doxx|doxing|doxxing)\w*\b"),
+)
+
+SELF_DATA_PATTERN: Final[Pattern[str]] = compile_pattern(
+    r"\b(?:my|my own)\s+(?:name|address|phone|phone number|email|"
+    r"email address|location|contact details|account information)\b"
+)
+
+
+def _normalized(text: str) -> str:
+    return normalize_text(text).control_stripped
+
+
+def is_safe_policy_question(text: str) -> bool:
+    """Return whether text asks about rules rather than requesting harm."""
+
+    normalized = _normalized(text)
+    has_policy_marker = any(marker in normalized for marker in POLICY_MARKERS)
+
+    return (
+        has_policy_marker
+        and QUESTION_PATTERN.search(normalized) is not None
+        and ACTION_REQUEST_PATTERN.search(normalized) is None
+        and UNSAFE_POLICY_INTENT_PATTERN.search(normalized) is None
+    )
+
+
+def is_private_data_request(text: str) -> bool:
+    """Return whether text seeks another person's private information."""
+
+    normalized = _normalized(text)
+
+    if is_safe_policy_question(normalized):
+        return False
+
+    if SELF_DATA_PATTERN.search(normalized):
+        return False
+
+    return any(
+        pattern.search(normalized) is not None
+        for pattern in PRIVATE_DATA_REQUEST_PATTERNS
+    )
 
 
 class OrderedKeywordDetector:
@@ -81,6 +188,8 @@ class OrderedKeywordDetector:
 
     def detect(self, text: str) -> Signal | None:
         flattened = normalize_text(text).control_stripped
+        policy_question = is_safe_policy_question(flattened)
+
         for rule in self._rules:
             matched = any(
                 keyword in flattened
@@ -88,6 +197,18 @@ class OrderedKeywordDetector:
             )
 
             if not matched:
+                continue
+
+            # Narrow keyword-only suppression for explicit policy questions.
+            # Do not gate vector detectors with this check.
+            if (
+                policy_question
+                and rule.reason_code
+                in {
+                    ReasonCode.MODERATION_EVASION,
+                    ReasonCode.PRIVATE_DATA_REQUEST,
+                }
+            ):
                 continue
 
             if (
@@ -113,6 +234,20 @@ class ImminentRiskDetector:
             Action.ESCALATE,
             ReasonCode.IMMINENT_SAFETY_RISK,
         )
+
+
+class PrivateDataDetector:
+    """Detect explicit requests for another person's private data."""
+
+    def detect(self, text: str) -> Signal | None:
+        if not is_private_data_request(text):
+            return None
+
+        return Signal(
+            Action.BLOCK,
+            ReasonCode.PRIVATE_DATA_REQUEST,
+        )
+
 
 class GenerateAbuseDetector:
     """Detect requests to create or perform targeted abusive language."""

@@ -42,6 +42,40 @@ STRONG_ABUSE_PATTERNS: Final[tuple[Pattern[str], ...]] = (
         r"\byou\s+(?:make me sick|should be ashamed|ruin everything|"
         r"deserve nothing|are not wanted)\b"
     ),
+    compile_pattern(
+        r"\byou(?:'re|re| are)\s+(?:so\s+)?"
+        r"(?:ugly|annoying|hopeless|weak|unwanted|unlovable|"
+        r"embarrassing|incompetent|ignorant|awful|horrible|"
+        r"ridiculous|repulsive|nasty|toxic|crazy|insane)\b"
+    ),
+    compile_pattern(
+        r"\b(?:go away|stay away|crawl back|disappear|"
+        r"get out of here|go back where you came from)\b"
+    ),
+    compile_pattern(
+        r"\b(?:people like you|your kind)\b"
+        r".{0,50}\b"
+        r"(?:do not|don't|should not|shouldn't)\s+"
+        r"(?:belong|exist|be here|be allowed)\b"
+    ),
+    compile_pattern(
+        r"\b(?:i hope|hope you)\s+"
+        r"(?:fail|suffer|lose everything|end up alone|"
+        r"get fired|disappear|die)\b"
+    ),
+    compile_pattern(
+        r"\byou\s+deserve\s+"
+        r"(?:nothing|to suffer|to fail|to be alone|"
+        r"to be humiliated|the worst)\b"
+    ),
+    compile_pattern(
+        r"\b(?:nobody|no one)\s+will\s+ever\s+"
+        r"(?:love|respect|believe|trust|accept)\s+you\b"
+    ),
+    compile_pattern(
+        r"\byou\s+(?:should|need to)\s+"
+        r"(?:shut up|leave|disappear|go away|get lost)\b"
+    ),
 )
 
 
