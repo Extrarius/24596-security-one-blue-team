@@ -7,8 +7,6 @@ from typing import Final
 
 from common import Action, ReasonCode
 from guardrail.abuse import is_generate_abuse_request
-from guardrail.evasion import is_moderation_evasion_request
-from guardrail.privacy import is_private_data_request
 from guardrail.detectors import Signal
 from guardrail.prototypes import LabeledPrototype, PrototypeMatcher
 
@@ -110,18 +108,6 @@ class PrototypeDetector:
         if (
             reason_code is ReasonCode.GENERATE_ABUSE
             and not is_generate_abuse_request(text)
-        ):
-            return None
-
-        if (
-            reason_code is ReasonCode.MODERATION_EVASION
-            and not is_moderation_evasion_request(text)
-        ):
-            return None
-
-        if (
-            reason_code is ReasonCode.PRIVATE_DATA_REQUEST
-            and not is_private_data_request(text)
         ):
             return None
 
