@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from common import Action, GuardrailDecision, GuardrailRequest, ReasonCode, Route
-from guardrail.detectors import Detector, GenerateAbuseDetector,OrderedKeywordDetector, Signal
+from guardrail.detectors import Detector, GenerateAbuseDetector, ImminentRiskDetector,OrderedKeywordDetector, Signal
 from guardrail.normalization import normalize_text
 from guardrail.policy import StarterPolicy
 from guardrail.quoted_evidence import QuotedEvidenceDetector
@@ -24,6 +24,7 @@ class StarterGuardrail:
             tuple(detectors)
             if detectors is not None
             else (
+                ImminentRiskDetector(),
                 OrderedKeywordDetector(),
                 GenerateAbuseDetector(),
                 create_starter_prototype_detector(),

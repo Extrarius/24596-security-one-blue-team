@@ -7,6 +7,7 @@ from typing import Protocol, Sequence, runtime_checkable
 
 from common import Action, ReasonCode
 from guardrail.abuse import is_generate_abuse_request
+from guardrail.imminent_risk import is_imminent_safety_risk
 from guardrail.normalization import normalize_text
 
 
@@ -36,23 +37,6 @@ class KeywordRule:
 
 
 DEFAULT_KEYWORD_RULES = (
-    KeywordRule(
-        Action.ESCALATE,
-        ReasonCode.IMMINENT_SAFETY_RISK,
-        (
-            "immediate danger",
-            "urgent help now",
-            "threatening me right now",
-            "about to hurt myself",
-            "about to hurt themselves",
-            "about to hurt himself",
-            "about to hurt herself",
-            "about to harm myself",
-            "about to harm themselves",
-            "about to harm himself",
-            "about to harm herself",
-        ),
-    ),
     KeywordRule(
         Action.BLOCK,
         ReasonCode.PROMPT_OVERRIDE,
@@ -117,6 +101,18 @@ class OrderedKeywordDetector:
                 rule.reason_code,
             )
         return None
+
+class ImminentRiskDetector:
+    """Detect current threats requiring immediate human escalation."""
+
+    def detect(self, text: str) -> Signal | None:
+        if not is_imminent_safety_risk(text):
+            return None
+
+        return Signal(
+            Action.ESCALATE,
+            ReasonCode.IMMINENT_SAFETY_RISK,
+        )
 
 class GenerateAbuseDetector:
     """Detect requests to create or perform targeted abusive language."""
