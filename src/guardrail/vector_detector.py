@@ -6,6 +6,7 @@ from math import isfinite
 from typing import Final
 
 from common import Action, ReasonCode
+from guardrail.abuse import is_generate_abuse_request
 from guardrail.detectors import Signal
 from guardrail.prototypes import LabeledPrototype, PrototypeMatcher
 
@@ -99,9 +100,20 @@ class PrototypeDetector:
             return None
         if match.margin < self.min_margin:
             return None
+
+        reason_code = ReasonCode(
+            match.nearest_attack_label
+        )
+
+        if (
+            reason_code is ReasonCode.GENERATE_ABUSE
+            and not is_generate_abuse_request(text)
+        ):
+            return None
+
         return Signal(
             Action.BLOCK,
-            ReasonCode(match.nearest_attack_label),
+            reason_code,
         )
 
 
